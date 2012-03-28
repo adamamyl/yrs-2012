@@ -1,0 +1,64 @@
+#/bin/bash
+#
+# deploy-yrs:
+#   script to deploy YRS site.
+#
+# Copyright (c) 2012 Adam McGreggor.
+#
+#   Email: <adam@rewiredstate.org>
+# 
+# $Id:$
+
+set -e
+
+VHD=/data/vhosts
+SITE=2012.youngrewiredstate.org
+CO=checkouts
+COD=${VHD}/${SITE}/${CO}
+DN=`date '+%Y%m%d'`.${RANDOM}${RANDOM}
+LIVE=${VHD}/${SITE}/docs
+CONFDIR=${VHD}/${SITE}/configs
+REPOBASE=git://github.com/adamamyl
+REPONAME=yrs-2012
+REPOEXT=.git
+REPO=${REPOBASE}/${REPONAME}${REPOEXT}
+
+if [ x$1 == x"--debug" ]; then
+    set -x
+fi
+
+umask 0022
+
+if [ ! -w ${COD} ]; then
+    echo "Unable to write to checkout dir (${CDO}). Bailing"
+    exit 1
+fi
+
+mkdir -p ${COD}/${DN}
+if [ ! -d ${COD}/${DN} ]; then
+    echo "Unable to create directory"
+    exit 2
+fi
+
+cd ${COD}/${DN} && git clone ${REPO}
+
+if [ -L ${COD}/current ]; then
+    rm ${COD}/current
+fi
+ln -s ${COD}/${DN}/${REPONAME} ${COD}/current
+
+cd ${COD}/${DN}/${REPONAME}
+COMMIT=`git show | grep commit`
+echo "${USER}@`hostname -f` pulled ${REPO} (${COMMIT}) at `date`" > ${COD}/${DN}/${REPONAME}/docroot/timestamp.txt
+
+for F in robots.txt 
+do
+    ln -s ${CONFDIR}/${F} ${COD}/${DN}/${REPONAME}/docroot/${F}
+done
+
+if [ -L ${LIVE} ]; then
+    rm ${LIVE}
+    ln -s ${COD}/${DN}/${REPONAME}/docroot ${LIVE}
+fi
+
+# vim:tabstop=4:expandtab:shiftwidth=4
